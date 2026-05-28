@@ -434,11 +434,26 @@ const SECTIONS = [
     id: 'I', title: 'I · 仪态状态', max: 10,
     items: [
       { key: 'I1', name: '眼神', max: 3,
-        help: '看镜头/与用户眼神交流。<br>满分=主动看镜头 / 一半=偶尔瞟 / 0=低头看稿' },
+        help: '看镜头/与用户眼神交流。',
+        custom: [
+          { label: '低头看稿', val: 0 },
+          { label: '偶尔看镜头', val: 1.5 },
+          { label: '主动看镜头', val: 3 },
+        ]},
       { key: 'I2', name: '声音情绪', max: 4,
-        help: '声音有起伏/情绪饱满/不平淡。<br>满分=有感染力 / 一半=平淡 / 0=没精神' },
+        help: '声音有起伏/情绪饱满/不平淡。',
+        custom: [
+          { label: '平淡', val: 0 },
+          { label: '有起伏', val: 2 },
+          { label: '有感染力', val: 4 },
+        ]},
       { key: 'I3', name: '精神状态', max: 3,
-        help: '坐姿/表情/整体精神面貌。<br>满分=自信饱满 / 一半=拘谨 / 0=紧张僵硬' },
+        help: '坐姿/表情/整体精神面貌。',
+        custom: [
+          { label: '紧张僵硬', val: 0 },
+          { label: '拘谨', val: 1.5 },
+          { label: '自信饱满', val: 3 },
+        ]},
     ]
   },
 ];
@@ -453,6 +468,9 @@ const BONUSES = [
   { key: 'b1', name: '临场应变出彩', max: 2 },
   { key: 'b2', name: '自创金句 / 记忆点', max: 2 },
   { key: 'b3', name: '数据表现突出', max: 1 },
+  { key: 'b4', name: '真诚 · 有感染力', max: 2 },
+  { key: 'b5', name: '团队配合好', max: 2 },
+  { key: 'b6', name: '全员开口参与', max: 1 },
 ];
 
 // 默认三档（针对单子项）
@@ -469,8 +487,15 @@ if (!teams) {
     name: `第${i+1}组`,
     scores: {},
     deducts: { d1: 0, d2: 0, d3: 0 },
-    bonuses: { b1: 0, b2: 0, b3: 0 },
+    bonuses: { b1: 0, b2: 0, b3: 0, b4: 0, b5: 0, b6: 0 },
   }));
+  saveTeams();
+} else {
+  // 兼容老数据：补齐新加的加分键
+  teams.forEach(t => {
+    if (!t.bonuses) t.bonuses = {};
+    ['b1','b2','b3','b4','b5','b6'].forEach(k => { if (t.bonuses[k] == null) t.bonuses[k] = 0; });
+  });
   saveTeams();
 }
 let currentIdx = parseInt(localStorage.getItem('current_idx') || '0');
