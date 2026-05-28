@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>直播打分</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #F7F3EE;
+  --surface: #FFFFFF;
+  --border: #E8E2D9;
+  --text: #2D2926;
+  --muted: #8A857E;
+  --accent: #C4956A;
+  --green: #5EA88C;
+  --gold: #D4A24A;
+  --red: #C0654A;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: 80px;
+}
+.container { max-width: 720px; margin: 0 auto; }
+
+/* 顶部固定栏 */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px 0;
+}
+.team-tabs {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.team-tabs::-webkit-scrollbar { display: none; }
+.team-tab {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--bg);
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  position: relative;
+}
+.team-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.team-tab .dot {
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.team-tab:not(.active) .dot { background: #C5BFB8; }
+.team-tab.active .dot { display: none; }
+
+.score-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.team-name-edit {
+  font-size: 16px; font-weight: 600; color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 60%;
+}
+.score-total {
+  font-size: 22px; font-weight: 700;
+  color: var(--accent);
+}
+.score-total .max { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+/* 评分卡 */
+.section {
+  background: var(--surface);
+  border-radius: 14px;
+  margin: 12px 16px;
+  overflow: hidden;
+}
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-size: 15px; font-weight: 600;
+}
+.section-score {
+  font-size: 14px; color: var(--accent); font-weight: 600;
+}
+
+.item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.item:last-child { border-bottom: none; }
+.item-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.item-name {
+  font-size: 14px; font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+}
+.help-btn {
+  background: var(--bg);
+  color: var(--muted);
+  border: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.item-current {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.help-text {
+  font-size: 12px;
+  color: var(--muted);
+  background: #FDF8F2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  line-height: 1.6;
+  display: none;
+}
+.help-text.show { display: block; }
+.options {
+  display: flex; gap: 6px;
+}
+.opt {
+  flex: 1;
+  padding: 10px 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  color: var(--text);
+}
+.opt .opt-pts {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.opt.selected {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.opt.selected .opt-pts { color: rgba(255,255,255,0.8); }
+
+/* 合规扣分 */
+.deduct-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+}
+.deduct-row + .deduct-row { border-top: 1px solid var(--border); }
+.deduct-info { flex: 1; }
+.deduct-info .name { font-size: 14px; }
+.deduct-info .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.counter {
+  display: flex; align-items: center; gap: 12px;
+}
+.counter-btn {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text);
+}
+.counter-val {
+  min-width: 24px; text-align: center;
+  font-size: 16px; font-weight: 600;
+}
+
+/* 加分滑块 */
+.bonus-row {
+  display: flex; gap: 6px;
+}
+.bonus-row .opt { padding: 8px 4px; }
+
+/* 底部操作栏 */
+.bottombar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex; gap: 8px;
+  z-index: 100;
+}
+.btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+
+/* 工具栏（右上角） */
+.tools {
+  position: absolute; top: 12px; right: 14px;
+  display: flex; gap: 6px;
+}
+.tool-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* 弹层 */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 18px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal h3 { font-size: 16px; margin-bottom: 12px; }
+.modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.modal th, .modal td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: center;
+}
+.modal th { background: var(--bg); font-weight: 600; }
+.modal-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 999;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="team-tabs" id="team-tabs"></div>
+  <div class="score-bar">
+    <input class="team-name-edit" id="team-name" placeholder="点击改名">
+    <div class="score-total"><span id="score-num">0</span><span class="max">/100</span></div>
+  </div>
+  <div class="tools">
+    <button class="tool-btn" onclick="openOverview()">汇总</button>
+    <button class="tool-btn" onclick="resetCurrent()">清空本组</button>
+  </div>
+</div>
+
+<div class="container" id="content"></div>
+
+<div class="bottombar">
+  <button class="btn btn-secondary" onclick="prevTeam()">上一组</button>
+  <button class="btn btn-primary" onclick="nextTeam()">保存 · 下一组</button>
+</div>
+
+<!-- 汇总弹层 -->
+<div class="modal-overlay" id="overview-modal" onclick="closeModal(event, 'overview-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>全班成绩汇总</h3>
+    <div id="overview-table"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="exportCSV()">导出 CSV</button>
+      <button class="btn btn-secondary" onclick="copyTable()">复制到剪贴板</button>
+      <button class="btn btn-secondary" onclick="closeModal(null,'overview-modal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============== 评分项定义 ==============
+const SECTIONS = [
+  {
+    id: 'A', title: 'A · 直播间操作', max: 15,
+    items: [
+      { key: 'A1', name: '挂上产品', max: 4,
+        help: '产品已上小黄车并能在直播间正常展示。<br>满分=全部讲解品都挂了 / 一半=只挂部分 / 0=没挂' },
+      { key: 'A2', name: '库存充足', max: 4,
+        help: '每个品的库存够整场卖。<br>满分=全部品库存充足 / 一半=部分缺货 / 0=主推品0库存' },
+      { key: 'A3', name: '讲解窗口', max: 3,
+        help: '讲哪个品就弹哪个品的讲解窗口。<br>满分=每次讲品都弹窗 / 一半=偶尔忘 / 0=全程没弹' },
+      { key: 'A4', name: '封面+标题+贴片', max: 4,
+        help: '三件套齐全且与今天的品/福利匹配。<br>满分=三件齐 / 一半=缺1件 / 0=缺2件以上' },
+    ]
+  },
+  {
+    id: 'B', title: 'B · 开场白（黄金30秒）', max: 12,
+    items: [
+      { key: 'B1', name: '抓注意', max: 3,
+        help: '第一句话让人停下来。<br>例："姐妹今天199的羽绒服只剩50件"<br>满分=有冲击力 / 一半=平淡 / 0=没说' },
+      { key: 'B2', name: '给价值', max: 3,
+        help: '5秒内告诉用户「留下来你能得到什么」。<br>满分=清晰给出利益点 / 一半=模糊 / 0=没说' },
+      { key: 'B3', name: '立人设', max: 3,
+        help: '让用户对主播形成第一印象（身份/专业/风格）。<br>满分=有记忆点 / 一半=一带而过 / 0=没立' },
+      { key: 'B4', name: '触发动作', max: 3,
+        help: '引导第一次互动（扣1/点关注/看小黄车）。<br>满分=明确指令 / 一半=含糊 / 0=没引导' },
+    ]
+  },
+  {
+    id: 'C', title: 'C · 留人三板斧', max: 8,
+    items: [
+      { key: 'C', name: '承诺/福利/悬念', max: 8,
+        help: '<b>承诺</b>：明确告诉用户"留到几点有什么"<br><b>福利</b>：抽奖/秒杀/赠品<br><b>悬念</b>：暗示重磅福利即将出现<br>用1个=3 / 用2个=6 / 3个全用=8',
+        custom: [
+          { label: '没用', val: 0 },
+          { label: '用1个', val: 3 },
+          { label: '用2个', val: 6 },
+          { label: '全用', val: 8 },
+        ]},
+    ]
+  },
+  {
+    id: 'D', title: 'D · 互动钩子（6种）', max: 10,
+    items: [
+      { key: 'D', name: '扣字/点赞/关注/答题/倒数/对话', max: 10,
+        help: '<b>扣字</b>：让用户在公屏扣字<br><b>点赞</b>：数字目标驱动点赞<br><b>关注</b>：关注换福利<br><b>答题</b>：问问题引评论<br><b>倒数</b>：倒计时催行动<br><b>对话</b>：问答式互动<br>用1个=3 / 用2个=6 / 用3+=10',
+        custom: [
+          { label: '没用', val: 0 },
+          { label: '1个', val: 3 },
+          { label: '2个', val: 6 },
+          { label: '3+', val: 10 },
+        ]},
+    ]
+  },
+  {
+    id: 'E', title: 'E · 讲品 FABE', max: 15,
+    items: [
+      { key: 'E1', name: 'F · 特征', max: 4,
+        help: '产品"是什么"——材质/规格/产地/技术参数。<br>满分=一句说清是什么 / 一半=堆参数 / 0=没讲' },
+      { key: 'E2', name: 'A · 优势', max: 4,
+        help: '比同类产品好在哪里。<br>满分=对比清晰 / 一半=只说自己好 / 0=没讲' },
+      { key: 'E3', name: 'B · 利益', max: 4,
+        help: '用户买了能"得到什么/解决什么"——这是FABE最重要的一环。<br>满分=场景化利益 / 一半=笼统 / 0=没讲' },
+      { key: 'E4', name: 'E · 证据', max: 3,
+        help: '检测报告/卖了多少件/评价/明星同款/亲身演示。<br>满分=有具体证据 / 一半=空口说 / 0=没讲' },
+    ]
+  },
+  {
+    id: 'F', title: 'F · 讲品节奏', max: 5,
+    items: [
+      { key: 'F', name: '30秒讲品 + 10秒互动', max: 5,
+        help: '不要连续讲品超过90秒——用户注意力崩塌。<br>讲30秒切10秒互动是最佳节奏。<br>满分=明显节奏切换 / 一半=偶尔切 / 0=一直闷头讲',
+        custom: [
+          { label: '一直讲', val: 0 },
+          { label: '偶尔切', val: 2 },
+          { label: '节奏好', val: 5 },
+        ]},
+    ]
+  },
+  {
+    id: 'G', title: 'G · 逼单 5 技巧', max: 15,
+    items: [
+      { key: 'G', name: '价格/库存/时间/福利/情绪', max: 15,
+        help: '<b>价格</b>：直播间价 vs 淘宝价对比<br><b>库存</b>：只剩X件<br><b>时间</b>：倒计时<br><b>福利</b>：加赠/叠加优惠<br><b>情绪</b>：共鸣推动<br>用1个=6 / 用2个=10 / 用3+=15',
+        custom: [
+          { label: '没用', val: 0 },
+          { label: '1个', val: 6 },
+          { label: '2个', val: 10 },
+          { label: '3+', val: 15 },
+        ]},
+    ]
+  },
+  {
+    id: 'H', title: 'H · 追单（连带销售）', max: 10,
+    items: [
+      { key: 'H', name: '搭配款/升级款/复购引导', max: 10,
+        help: '<b>搭配</b>：买A推搭A的B<br><b>升级</b>：基础款用户推升级款<br><b>复购</b>：引导关注下次直播<br>用1个=4 / 用2个=7 / 用3个=10',
+        custom: [
+          { label: '没用', val: 0 },
+          { label: '用1个', val: 4 },
+          { label: '用2个', val: 7 },
+          { label: '全用', val: 10 },
+        ]},
+    ]
+  },
+  {
+    id: 'I', title: 'I · 仪态状态', max: 10,
+    items: [
+      { key: 'I1', name: '眼神', max: 3,
+        help: '看镜头/与用户眼神交流。<br>满分=主动看镜头 / 一半=偶尔瞟 / 0=低头看稿' },
+      { key: 'I2', name: '声音情绪', max: 4,
+        help: '声音有起伏/情绪饱满/不平淡。<br>满分=有感染力 / 一半=平淡 / 0=没精神' },
+      { key: 'I3', name: '精神状态', max: 3,
+        help: '坐姿/表情/整体精神面貌。<br>满分=自信饱满 / 一半=拘谨 / 0=紧张僵硬' },
+    ]
+  },
+];
+
+const DEDUCTS = [
+  { key: 'd1', name: '违禁词（极限词/夸大）', sub: '每次 -5', per: 5 },
+  { key: 'd2', name: '虚假承诺 / 撕竞品', sub: '每次 -10', per: 10 },
+  { key: 'd3', name: '引导加微信 / 脱平台', sub: '每次 -15', per: 15 },
+];
+
+const BONUSES = [
+  { key: 'b1', name: '临场应变出彩', max: 2 },
+  { key: 'b2', name: '自创金句 / 记忆点', max: 2 },
+  { key: 'b3', name: '数据表现突出', max: 1 },
+];
+
+// 默认三档（针对单子项）
+const DEFAULT_OPTS = (max) => [
+  { label: '没做', val: 0 },
+  { label: '一般', val: Math.round(max / 2 * 10) / 10 },
+  { label: '完整', val: max },
+];
+
+// ============== 状态 ==============
+let teams = JSON.parse(localStorage.getItem('teams_v1') || 'null');
+if (!teams) {
+  teams = Array.from({length: 9}, (_, i) => ({
+    name: `第${i+1}组`,
+    scores: {},
+    deducts: { d1: 0, d2: 0, d3: 0 },
+    bonuses: { b1: 0, b2: 0, b3: 0 },
+  }));
+  saveTeams();
+}
+let currentIdx = parseInt(localStorage.getItem('current_idx') || '0');
+
+function saveTeams() {
+  localStorage.setItem('teams_v1', JSON.stringify(teams));
+}
+
+// ============== 渲染 ==============
+function renderTabs() {
+  const tabs = document.getElementById('team-tabs');
+  tabs.innerHTML = teams.map((t, i) => {
+    const filled = Object.keys(t.scores).length > 0;
+    return `<div class="team-tab ${i === currentIdx ? 'active' : ''}" onclick="switchTeam(${i})">
+      ${t.name}${filled ? '<span class="dot"></span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderTeamName() {
+  document.getElementById('team-name').value = teams[currentIdx].name;
+}
+
+function renderContent() {
+  const team = teams[currentIdx];
+  const content = document.getElementById('content');
+  let html = '';
+
+  SECTIONS.forEach(sec => {
+    const sectionScore = sec.items.reduce((s, it) => s + (team.scores[it.key] ?? 0), 0);
+    html += `<div class="section">
+      <div class="section-head">
+        <span class="section-title">${sec.title}</span>
+        <span class="section-score">${sectionScore} / ${sec.max}</span>
+      </div>`;
+    sec.items.forEach(it => {
+      const opts = it.custom || DEFAULT_OPTS(it.max);
+      const current = team.scores[it.key] ?? null;
+      html += `<div class="item">
+        <div class="item-head">
+          <div class="item-name">
+            ${it.name}
+            <button class="help-btn" onclick="toggleHelp('${it.key}')">?</button>
+          </div>
+          <div class="item-current">${current !== null ? current : '–'} / ${it.max}</div>
+        </div>
+        <div class="help-text" id="help-${it.key}">${it.help}</div>
+        <div class="options">
+          ${opts.map(o => `
+            <button class="opt ${current === o.val ? 'selected' : ''}" onclick="setScore('${it.key}', ${o.val})">
+              ${o.label}
+              <span class="opt-pts">${o.val}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // 合规扣分
+  html += `<div class="section">
+    <div class="section-head">
+      <span class="section-title">⚠ 合规扣分</span>
+      <span class="section-score" style="color:var(--red)">-${calcDeducts(team)}</span>
+    </div>
+    <div style="padding: 0 14px">`;
+  DEDUCTS.forEach(d => {
+    html += `<div class="deduct-row">
+      <div class="deduct-info">
+        <div class="name">${d.name}</div>
+        <div class="sub">${d.sub}</div>
+      </div>
+      <div class="counter">
+        <button class="counter-btn" onclick="changeDeduct('${d.key}',-1)">−</button>
+        <div class="counter-val">${team.deducts[d.key] || 0}</div>
+        <button class="counter-btn" onclick="changeDeduct('${d.key}',1)">+</button>
+      </div>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // 加分项
+  html += `<div class="section">
+    <div class="section-head">
+      <span class="section-title">⭐ 加分项</span>
+      <span class="section-score" style="color:var(--green)">+${calcBonuses(team)}</span>
+    </div>`;
+  BONUSES.forEach(b => {
+    const cur = team.bonuses[b.key] || 0;
+    const opts = [{ label: '没', val: 0 }, ...Array.from({length: b.max}, (_,i)=>({label: '+'+(i+1), val: i+1}))];
+    html += `<div class="item">
+      <div class="item-head">
+        <div class="item-name">${b.name}</div>
+        <div class="item-current">+${cur} / +${b.max}</div>
+      </div>
+      <div class="options bonus-row">
+        ${opts.map(o => `
+          <button class="opt ${cur === o.val ? 'selected' : ''}" onclick="setBonus('${b.key}', ${o.val})">
+            ${o.label}
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  content.innerHTML = html;
+  updateTotal();
+}
+
+function calcDeducts(team) {
+  return DEDUCTS.reduce((s, d) => s + (team.deducts[d.key] || 0) * d.per, 0);
+}
+function calcBonuses(team) {
+  return BONUSES.reduce((s, b) => s + (team.bonuses[b.key] || 0), 0);
+}
+function calcTotal(team) {
+  const base = SECTIONS.reduce((s, sec) =>
+    s + sec.items.reduce((sub, it) => sub + (team.scores[it.key] ?? 0), 0), 0);
+  return Math.max(0, base - calcDeducts(team) + calcBonuses(team));
+}
+
+function updateTotal() {
+  const t = calcTotal(teams[currentIdx]);
+  const el = document.getElementById('score-num');
+  el.textContent = t;
+  el.style.color = t >= 90 ? 'var(--gold)' : t < 60 ? 'var(--red)' : 'var(--accent)';
+}
+
+// ============== 操作 ==============
+function setScore(key, val) {
+  teams[currentIdx].scores[key] = val;
+  saveTeams();
+  renderContent();
+  renderTabs();
+}
+
+function changeDeduct(key, delta) {
+  const team = teams[currentIdx];
+  team.deducts[key] = Math.max(0, (team.deducts[key] || 0) + delta);
+  saveTeams();
+  renderContent();
+}
+
+function setBonus(key, val) {
+  teams[currentIdx].bonuses[key] = val;
+  saveTeams();
+  renderContent();
+}
+
+function toggleHelp(key) {
+  const el = document.getElementById('help-' + key);
+  el.classList.toggle('show');
+}
+
+function switchTeam(idx) {
+  currentIdx = idx;
+  localStorage.setItem('current_idx', idx);
+  renderTabs();
+  renderTeamName();
+  renderContent();
+  window.scrollTo(0, 0);
+}
+
+function prevTeam() {
+  if (currentIdx > 0) switchTeam(currentIdx - 1);
+}
+
+function nextTeam() {
+  toast(`已保存「${teams[currentIdx].name}」 ${calcTotal(teams[currentIdx])}分`);
+  if (currentIdx < teams.length - 1) {
+    setTimeout(() => switchTeam(currentIdx + 1), 400);
+  }
+}
+
+function resetCurrent() {
+  if (!confirm('清空本组所有评分？')) return;
+  teams[currentIdx].scores = {};
+  teams[currentIdx].deducts = { d1: 0, d2: 0, d3: 0 };
+  teams[currentIdx].bonuses = { b1: 0, b2: 0, b3: 0 };
+  saveTeams();
+  renderContent();
+  renderTabs();
+  toast('已清空');
+}
+
+// 改组名
+document.addEventListener('DOMContentLoaded', () => {
+  renderTabs();
+  renderTeamName();
+  renderContent();
+  document.getElementById('team-name').addEventListener('input', e => {
+    teams[currentIdx].name = e.target.value || `第${currentIdx+1}组`;
+    saveTeams();
+    renderTabs();
+  });
+});
+
+// ============== 汇总 ==============
+function openOverview() {
+  const rows = teams.map((t, i) => {
+    const sectionScores = SECTIONS.map(sec =>
+      sec.items.reduce((s, it) => s + (t.scores[it.key] ?? 0), 0));
+    const total = calcTotal(t);
+    const deduct = calcDeducts(t);
+    const bonus = calcBonuses(t);
+    return { name: t.name, sectionScores, deduct, bonus, total };
+  });
+
+  let html = `<table><thead><tr>
+    <th>组名</th>
+    ${SECTIONS.map(s => `<th>${s.id}<br><span style="font-weight:400;font-size:11px;color:#888">/${s.max}</span></th>`).join('')}
+    <th>扣</th><th>加</th><th style="color:var(--accent)">总分</th>
+  </tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += `<tr>
+      <td style="text-align:left">${r.name}</td>
+      ${r.sectionScores.map(s => `<td>${s}</td>`).join('')}
+      <td style="color:var(--red)">${r.deduct ? '-'+r.deduct : '0'}</td>
+      <td style="color:var(--green)">${r.bonus ? '+'+r.bonus : '0'}</td>
+      <td style="color:var(--accent);font-weight:600">${r.total}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('overview-table').innerHTML = html;
+  document.getElementById('overview-modal').classList.add('show');
+}
+
+function closeModal(e, id) {
+  if (e && e.target.id !== id) return;
+  document.getElementById(id).classList.remove('show');
+}
+
+function buildCSV() {
+  const head = ['组名', ...SECTIONS.map(s => `${s.id}_${s.title.replace(/.+·\s*/,'')}`), '扣分', '加分', '总分'];
+  const lines = [head.join(',')];
+  teams.forEach(t => {
+    const sectionScores = SECTIONS.map(sec =>
+      sec.items.reduce((s, it) => s + (t.scores[it.key] ?? 0), 0));
+    lines.push([t.name, ...sectionScores, calcDeducts(t), calcBonuses(t), calcTotal(t)].join(','));
+  });
+  return lines.join('\n');
+}
+
+function exportCSV() {
+  const csv = '﻿' + buildCSV();
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `直播打分_${new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')}.csv`;
+  a.click();
+  toast('已导出 CSV');
+}
+
+function copyTable() {
+  navigator.clipboard.writeText(buildCSV()).then(() => toast('已复制到剪贴板'));
+}
+
+// ============== 工具 ==============
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
