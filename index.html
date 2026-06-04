@@ -485,7 +485,7 @@ body {
         仅直播<span class="stage-sub">B-I · 85</span>
       </button>
       <button class="stage-btn" data-stage="bonus" onclick="switchStage('bonus')">
-        仅加分<span class="stage-sub">最多 +10</span>
+        加扣分<span class="stage-sub">综合调整</span>
       </button>
     </div>
   </div>
@@ -798,8 +798,8 @@ function renderContent() {
     html += `</div>`;
   });
 
-  // 合规扣分：仅在 all 和 live 阶段显示
-  if (currentStage === 'all' || currentStage === 'live') {
+  // 合规扣分：仅在 all 和 bonus 阶段显示
+  if (currentStage === 'all' || currentStage === 'bonus') {
   html += `<div class="section">
     <div class="section-head">
       <span class="section-title">⚠ 合规扣分</span>
@@ -880,16 +880,17 @@ function updateTotal() {
     maxLabel = '/15';
     pct = t / 15;
   } else if (currentStage === 'live') {
-    // 仅直播 = B-I 总分 - 扣分（不含加分）
-    const base = SECTIONS.filter(s => s.stage === 'live')
+    // 仅直播 = B-I 主分（不含扣分加分）
+    t = SECTIONS.filter(s => s.stage === 'live')
       .reduce((s, sec) => s + sec.items.reduce((sub, it) => sub + (team.scores[it.key] ?? 0), 0), 0);
-    t = Math.max(0, base - calcDeducts(team));
     maxLabel = '/85';
     pct = t / 85;
   } else if (currentStage === 'bonus') {
-    t = '+' + calcBonuses(team);
-    maxLabel = '/+10';
-    pct = calcBonuses(team) / 10;
+    // 加分阶段 = 净调整（加分 - 扣分）
+    const net = calcBonuses(team) - calcDeducts(team);
+    t = (net >= 0 ? '+' : '') + net;
+    maxLabel = ' 净调整';
+    pct = 0.7; // 中性颜色
   } else {
     t = calcTotal(team);
     maxLabel = '/100';
