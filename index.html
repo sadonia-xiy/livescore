@@ -331,6 +331,51 @@ body {
   border-color: var(--accent);
 }
 
+.review-card {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--accent);
+}
+.review-card .rc-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.review-card .rc-name {
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+.review-card .rc-score {
+  font-size: 14px; color: var(--accent); font-weight: 600;
+}
+.review-card .rc-body {
+  font-size: 13px; line-height: 1.7; color: var(--text);
+  white-space: pre-wrap; word-break: break-word;
+}
+.review-card .rc-note {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 50px;
+  outline: none;
+  background: var(--surface);
+}
+.review-card .rc-note:focus { border-color: var(--accent); }
+.review-card .rc-copy {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
 .overview-wrap { overflow-x: auto; }
 .overview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .overview-table th, .overview-table td {
@@ -434,10 +479,13 @@ body {
         全部<span class="stage-sub">含汇总</span>
       </button>
       <button class="stage-btn" data-stage="op" onclick="switchStage('op')">
-        仅操作<span class="stage-sub">A · 15分</span>
+        仅操作<span class="stage-sub">A · 15</span>
       </button>
       <button class="stage-btn" data-stage="live" onclick="switchStage('live')">
-        仅直播<span class="stage-sub">B-I · 85分</span>
+        仅直播<span class="stage-sub">B-I · 85</span>
+      </button>
+      <button class="stage-btn" data-stage="bonus" onclick="switchStage('bonus')">
+        仅加分<span class="stage-sub">最多 +10</span>
       </button>
     </div>
   </div>
@@ -451,10 +499,15 @@ body {
     <div class="overview-wrap" id="overview-table"></div>
   </div>
   <div class="page-section">
+    <h3>各组讲评（自动生成）</h3>
+    <div class="desc">基于评分自动生成，可手动追加备注。点「复制」可直接发群。</div>
+    <div id="reviews-list"></div>
+  </div>
+  <div class="page-section">
     <h3>导出</h3>
     <button class="tool-action primary" onclick="exportCSV()">📥 导出 CSV 表格</button>
     <button class="tool-action" onclick="copyTable()">📋 复制成绩到剪贴板</button>
-    <div class="desc" style="margin-top:8px">导出后可用 Excel 打开，或粘贴到聊天/文档里。</div>
+    <button class="tool-action" onclick="copyAllReviews()">📋 复制全部讲评</button>
   </div>
 </div>
 
@@ -745,8 +798,8 @@ function renderContent() {
     html += `</div>`;
   });
 
-  // 合规扣分（操作阶段不显示）
-  if (currentStage !== 'op') {
+  // 合规扣分：仅在 all 和 live 阶段显示
+  if (currentStage === 'all' || currentStage === 'live') {
   html += `<div class="section">
     <div class="section-head">
       <span class="section-title">⚠ 合规扣分</span>
@@ -769,8 +822,8 @@ function renderContent() {
   html += `</div></div>`;
   }
 
-  // 加分项（操作阶段不显示）
-  if (currentStage !== 'op') {
+  // 加分项：仅在 all 和 bonus 阶段显示
+  if (currentStage === 'all' || currentStage === 'bonus') {
   html += `<div class="section">
     <div class="section-head">
       <span class="section-title">⭐ 加分项</span>
@@ -821,22 +874,30 @@ function calcStageScore(team, stage) {
 
 function updateTotal() {
   const team = teams[currentIdx];
-  let t, maxLabel;
+  let t, maxLabel, pct;
   if (currentStage === 'op') {
     t = calcStageScore(team, 'op');
     maxLabel = '/15';
+    pct = t / 15;
   } else if (currentStage === 'live') {
-    t = calcStageScore(team, 'live');
+    // 仅直播 = B-I 总分 - 扣分（不含加分）
+    const base = SECTIONS.filter(s => s.stage === 'live')
+      .reduce((s, sec) => s + sec.items.reduce((sub, it) => sub + (team.scores[it.key] ?? 0), 0), 0);
+    t = Math.max(0, base - calcDeducts(team));
     maxLabel = '/85';
+    pct = t / 85;
+  } else if (currentStage === 'bonus') {
+    t = '+' + calcBonuses(team);
+    maxLabel = '/+10';
+    pct = calcBonuses(team) / 10;
   } else {
     t = calcTotal(team);
     maxLabel = '/100';
+    pct = t / 100;
   }
   const el = document.getElementById('score-num');
   el.textContent = t;
   document.getElementById('score-max').textContent = maxLabel;
-  // 红绿黄按百分比判断（不同阶段的分母不一样）
-  const pct = currentStage === 'op' ? t/15 : currentStage === 'live' ? t/85 : t/100;
   el.style.color = pct >= 0.9 ? 'var(--gold)' : pct < 0.6 ? 'var(--red)' : 'var(--accent)';
 }
 
@@ -1001,6 +1062,107 @@ function renderOverview() {
   });
   html += `</tbody></table>`;
   document.getElementById('overview-table').innerHTML = html;
+  renderReviews();
+}
+
+// ============== 讲评生成 ==============
+const DEDUCT_WORDS = {
+  d1: '违禁词（极限词/夸大）',
+  d2: '虚假承诺或与竞品对比',
+  d3: '引导加微信 / 脱平台'
+};
+
+function generateReview(team) {
+  const total = calcTotal(team);
+  let level;
+  if (total >= 90) level = '优秀';
+  else if (total >= 75) level = '良好';
+  else if (total >= 60) level = '合格';
+  else level = '待改进';
+
+  // 各板块得分率
+  const sectionStats = SECTIONS.map(sec => {
+    const score = sec.items.reduce((s, it) => s + (team.scores[it.key] ?? 0), 0);
+    return { id: sec.id, title: sec.title, score, max: sec.max, pct: score / sec.max };
+  });
+  const high = sectionStats.filter(s => s.pct >= 0.85 && s.max >= 5).slice(0, 3);
+  const low = sectionStats.filter(s => s.pct <= 0.4 && s.max >= 5).slice(0, 3);
+
+  // 扣分明细
+  const deductLines = [];
+  for (const k in DEDUCT_WORDS) {
+    const n = team.deducts[k] || 0;
+    if (n > 0) deductLines.push(`  · ${DEDUCT_WORDS[k]}：${n} 次`);
+  }
+
+  // 加分明细
+  const bonusTotal = calcBonuses(team);
+
+  let txt = `【${team.name}】总分 ${total} / 100  ·  ${level}\n`;
+
+  if (high.length) {
+    txt += `\n✅ 亮点：\n`;
+    high.forEach(h => txt += `  · ${h.title}（${h.score}/${h.max}）表现到位\n`);
+  }
+
+  if (low.length) {
+    txt += `\n⚠ 待提升：\n`;
+    low.forEach(l => txt += `  · ${l.title}（${l.score}/${l.max}）几乎没体现\n`);
+  }
+
+  if (deductLines.length) {
+    txt += `\n🔴 合规扣分：\n${deductLines.join('\n')}\n  → 需要复习课件中的红线话术\n`;
+  }
+
+  if (bonusTotal > 0) {
+    txt += `\n⭐ 加分 +${bonusTotal}（综合表现额外认可）\n`;
+  }
+
+  return txt.trim();
+}
+
+function renderReviews() {
+  const list = document.getElementById('reviews-list');
+  if (!list) return;
+  list.innerHTML = teams.map((t, i) => {
+    const auto = generateReview(t);
+    const note = t.note || '';
+    return `
+      <div class="review-card">
+        <div class="rc-head">
+          <span class="rc-name">${t.name}</span>
+          <button class="rc-copy" onclick="copyReview(${i})">复制</button>
+        </div>
+        <div class="rc-body">${escHtml(auto)}</div>
+        <textarea class="rc-note" placeholder="手动补充备注（自动保存）" oninput="updateNote(${i}, this.value)">${note}</textarea>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateNote(idx, val) {
+  teams[idx].note = val;
+  saveTeams();
+}
+
+function buildFullReview(idx) {
+  const t = teams[idx];
+  let txt = generateReview(t);
+  if (t.note) txt += `\n\n📝 老师补充：\n${t.note}`;
+  return txt;
+}
+
+function copyReview(idx) {
+  navigator.clipboard.writeText(buildFullReview(idx))
+    .then(() => toast(`已复制「${teams[idx].name}」讲评`));
+}
+
+function copyAllReviews() {
+  const all = teams.map((_, i) => buildFullReview(i)).join('\n\n────────────────\n\n');
+  navigator.clipboard.writeText(all).then(() => toast('全部讲评已复制'));
 }
 
 function buildCSV() {
