@@ -21,8 +21,11 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background: var(--bg);
   color: var(--text);
-  padding-bottom: 80px;
+  padding-bottom: 130px;
 }
+/* 页面切换 */
+.page { display: none; }
+.page.active { display: block; }
 .container { max-width: 720px; margin: 0 auto; }
 
 /* 顶部固定栏 */
@@ -233,20 +236,110 @@ body {
 .btn-primary { background: var(--accent); color: white; }
 .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 
-/* 工具栏（右上角） */
-.tools {
-  position: absolute; top: 12px; right: 14px;
-  display: flex; gap: 6px;
-}
-.tool-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 5px 10px;
+/* 顶部小工具按钮（仅"查未填"留在打分页右上） */
+.find-missing-btn {
+  position: absolute;
+  top: 12px; right: 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 14px;
+  padding: 4px 10px;
   font-size: 12px;
+  cursor: pointer;
+  z-index: 110;
+}
+.find-missing-btn:active { background: var(--accent); color: white; }
+
+/* 底部 Tab Bar */
+.tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index: 99;
+}
+.tab-item {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  font-size: 11px;
   color: var(--muted);
   cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
+.tab-item .tab-icon {
+  font-size: 20px;
+}
+.tab-item.active { color: var(--accent); font-weight: 600; }
+
+/* 主操作浮在 tabbar 上 */
+.actionbar {
+  position: fixed;
+  bottom: 60px; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex; gap: 8px;
+  z-index: 100;
+}
+.actionbar.hidden { display: none; }
+
+/* 工具页 / 汇总页 */
+.page-section {
+  background: var(--surface);
+  margin: 12px 16px;
+  border-radius: 14px;
+  padding: 16px;
+}
+.page-section h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.page-section .desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.tool-action {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-family: inherit;
+  color: var(--text);
+}
+.tool-action.danger {
+  color: var(--red);
+  border-color: var(--red);
+}
+.tool-action.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.overview-wrap { overflow-x: auto; }
+.overview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.overview-table th, .overview-table td {
+  border: 1px solid var(--border);
+  padding: 5px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.overview-table th { background: var(--bg); font-weight: 600; font-size: 11px; }
 
 /* 阶段切换 */
 .stage-bar {
@@ -327,48 +420,83 @@ body {
 </head>
 <body>
 
-<div class="topbar">
-  <div class="team-tabs" id="team-tabs"></div>
-  <div class="score-bar">
-    <input class="team-name-edit" id="team-name" placeholder="点击改名">
-    <div class="score-total"><span id="score-num">0</span><span class="max" id="score-max">/100</span></div>
+<!-- ========== 打分页 ========== -->
+<div class="page active" id="page-score">
+  <div class="topbar">
+    <button class="find-missing-btn" onclick="findUnfilled()">查未填</button>
+    <div class="team-tabs" id="team-tabs"></div>
+    <div class="score-bar">
+      <input class="team-name-edit" id="team-name" placeholder="点击改名">
+      <div class="score-total"><span id="score-num">0</span><span class="max" id="score-max">/100</span></div>
+    </div>
+    <div class="stage-bar">
+      <button class="stage-btn active" data-stage="all" onclick="switchStage('all')">
+        全部<span class="stage-sub">含汇总</span>
+      </button>
+      <button class="stage-btn" data-stage="op" onclick="switchStage('op')">
+        仅操作<span class="stage-sub">A · 15分</span>
+      </button>
+      <button class="stage-btn" data-stage="live" onclick="switchStage('live')">
+        仅直播<span class="stage-sub">B-I · 85分</span>
+      </button>
+    </div>
   </div>
-  <div class="stage-bar">
-    <button class="stage-btn active" data-stage="all" onclick="switchStage('all')">
-      全部<span class="stage-sub">含汇总</span>
-    </button>
-    <button class="stage-btn" data-stage="op" onclick="switchStage('op')">
-      仅操作<span class="stage-sub">A · 15分</span>
-    </button>
-    <button class="stage-btn" data-stage="live" onclick="switchStage('live')">
-      仅直播<span class="stage-sub">B-I · 85分</span>
-    </button>
+  <div class="container" id="content"></div>
+</div>
+
+<!-- ========== 汇总页 ========== -->
+<div class="page" id="page-overview">
+  <div class="page-section">
+    <h3>全班成绩汇总</h3>
+    <div class="overview-wrap" id="overview-table"></div>
   </div>
-  <div class="tools">
-    <button class="tool-btn" onclick="findUnfilled()">查未填</button>
-    <button class="tool-btn" onclick="openOverview()">汇总</button>
-    <button class="tool-btn" onclick="resetCurrent()">清空本组</button>
+  <div class="page-section">
+    <h3>导出</h3>
+    <button class="tool-action primary" onclick="exportCSV()">📥 导出 CSV 表格</button>
+    <button class="tool-action" onclick="copyTable()">📋 复制成绩到剪贴板</button>
+    <div class="desc" style="margin-top:8px">导出后可用 Excel 打开，或粘贴到聊天/文档里。</div>
   </div>
 </div>
 
-<div class="container" id="content"></div>
+<!-- ========== 工具页 ========== -->
+<div class="page" id="page-tools">
+  <div class="page-section">
+    <h3>当前组操作</h3>
+    <div class="desc">当前显示的是「<span id="tools-current-team">第1组</span>」的工具。</div>
+    <button class="tool-action danger" onclick="resetCurrent()">🗑 清空本组所有评分</button>
+  </div>
+  <div class="page-section">
+    <h3>全部数据</h3>
+    <div class="desc">下面的操作会影响 9 个组的所有打分数据，请谨慎。</div>
+    <button class="tool-action danger" onclick="resetAll()">⚠ 清空所有组的评分</button>
+  </div>
+  <div class="page-section">
+    <h3>关于</h3>
+    <div class="desc">
+      数据存在浏览器本地，关闭也不丢。<br>
+      切换浏览器 / 清缓存 / 隐身模式会导致数据丢失。<br>
+      建议每次打完分到「汇总」页导出 CSV 备份。
+    </div>
+  </div>
+</div>
 
-<div class="bottombar">
+<!-- ========== 底部主操作栏（仅打分页） ========== -->
+<div class="actionbar" id="actionbar">
   <button class="btn btn-secondary" onclick="prevTeam()">上一组</button>
   <button class="btn btn-primary" onclick="nextTeam()">保存 · 下一组</button>
 </div>
 
-<!-- 汇总弹层 -->
-<div class="modal-overlay" id="overview-modal" onclick="closeModal(event, 'overview-modal')">
-  <div class="modal" onclick="event.stopPropagation()">
-    <h3>全班成绩汇总</h3>
-    <div id="overview-table"></div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="exportCSV()">导出 CSV</button>
-      <button class="btn btn-secondary" onclick="copyTable()">复制到剪贴板</button>
-      <button class="btn btn-secondary" onclick="closeModal(null,'overview-modal')">关闭</button>
-    </div>
-  </div>
+<!-- ========== 底部 Tab Bar ========== -->
+<div class="tabbar">
+  <button class="tab-item active" data-page="score" onclick="switchPage('score')">
+    <span class="tab-icon">📝</span>打分
+  </button>
+  <button class="tab-item" data-page="overview" onclick="switchPage('overview')">
+    <span class="tab-icon">📊</span>汇总
+  </button>
+  <button class="tab-item" data-page="tools" onclick="switchPage('tools')">
+    <span class="tab-icon">⚙️</span>工具
+  </button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -793,14 +921,42 @@ function nextTeam() {
 }
 
 function resetCurrent() {
-  if (!confirm('清空本组所有评分？')) return;
+  if (!confirm(`清空「${teams[currentIdx].name}」所有评分？`)) return;
   teams[currentIdx].scores = {};
   teams[currentIdx].deducts = { d1: 0, d2: 0, d3: 0 };
-  teams[currentIdx].bonuses = { b1: 0, b2: 0, b3: 0 };
+  teams[currentIdx].bonuses = { b1: 0, b2: 0, b3: 0, b4: 0, b5: 0, b6: 0 };
   saveTeams();
   renderContent();
   renderTabs();
   toast('已清空');
+}
+
+function resetAll() {
+  if (!confirm('⚠ 这会清空 9 个组的全部评分，无法恢复！确定继续？')) return;
+  if (!confirm('再确认一次：真的清空所有数据？')) return;
+  teams.forEach(t => {
+    t.scores = {};
+    t.deducts = { d1: 0, d2: 0, d3: 0 };
+    t.bonuses = { b1: 0, b2: 0, b3: 0, b4: 0, b5: 0, b6: 0 };
+  });
+  saveTeams();
+  renderContent();
+  renderTabs();
+  renderOverview();
+  toast('全部数据已清空');
+}
+
+// ============== 页面切换 ==============
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === page);
+  });
+  document.getElementById('actionbar').classList.toggle('hidden', page !== 'score');
+  if (page === 'overview') renderOverview();
+  if (page === 'tools') document.getElementById('tools-current-team').textContent = teams[currentIdx].name;
+  window.scrollTo(0, 0);
 }
 
 // 改组名
@@ -819,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============== 汇总 ==============
-function openOverview() {
+function renderOverview() {
   const rows = teams.map((t, i) => {
     const sectionScores = SECTIONS.map(sec =>
       sec.items.reduce((s, it) => s + (t.scores[it.key] ?? 0), 0));
@@ -829,9 +985,9 @@ function openOverview() {
     return { name: t.name, sectionScores, deduct, bonus, total };
   });
 
-  let html = `<table><thead><tr>
+  let html = `<table class="overview-table"><thead><tr>
     <th>组名</th>
-    ${SECTIONS.map(s => `<th>${s.id}<br><span style="font-weight:400;font-size:11px;color:#888">/${s.max}</span></th>`).join('')}
+    ${SECTIONS.map(s => `<th>${s.id}<br><span style="font-weight:400;font-size:10px;color:#888">/${s.max}</span></th>`).join('')}
     <th>扣</th><th>加</th><th style="color:var(--accent)">总分</th>
   </tr></thead><tbody>`;
   rows.forEach(r => {
@@ -845,12 +1001,6 @@ function openOverview() {
   });
   html += `</tbody></table>`;
   document.getElementById('overview-table').innerHTML = html;
-  document.getElementById('overview-modal').classList.add('show');
-}
-
-function closeModal(e, id) {
-  if (e && e.target.id !== id) return;
-  document.getElementById(id).classList.remove('show');
 }
 
 function buildCSV() {
