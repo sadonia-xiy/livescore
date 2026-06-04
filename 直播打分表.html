@@ -105,8 +105,16 @@ body {
 .item {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
+  transition: background 0.3s;
 }
 .item:last-child { border-bottom: none; }
+.item.highlight {
+  animation: pulse-hl 1.6s ease-out;
+}
+@keyframes pulse-hl {
+  0%, 100% { background: var(--surface); }
+  20%, 60% { background: #FFE9C2; }
+}
 .item-head {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 8px;
@@ -337,6 +345,7 @@ body {
     </button>
   </div>
   <div class="tools">
+    <button class="tool-btn" onclick="findUnfilled()">查未填</button>
     <button class="tool-btn" onclick="openOverview()">汇总</button>
     <button class="tool-btn" onclick="resetCurrent()">清空本组</button>
   </div>
@@ -586,7 +595,7 @@ function renderContent() {
     sec.items.forEach(it => {
       const opts = it.custom || DEFAULT_OPTS(it.max);
       const current = team.scores[it.key] ?? null;
-      html += `<div class="item">
+      html += `<div class="item" data-item-key="${it.key}">
         <div class="item-head">
           <div class="item-name">
             ${it.name}
@@ -742,7 +751,41 @@ function prevTeam() {
   if (currentIdx > 0) switchTeam(currentIdx - 1);
 }
 
+function findMissingKeys(team) {
+  const keys = [];
+  SECTIONS.forEach(sec => {
+    if (currentStage !== 'all' && sec.stage !== currentStage) return;
+    sec.items.forEach(it => {
+      if (team.scores[it.key] === undefined) keys.push(it.key);
+    });
+  });
+  return keys;
+}
+
+function jumpToItem(key) {
+  const el = document.querySelector(`[data-item-key="${key}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // 重置动画再触发，确保连点也能闪
+  el.classList.remove('highlight');
+  void el.offsetWidth;
+  el.classList.add('highlight');
+}
+
+function findUnfilled() {
+  const missing = findMissingKeys(teams[currentIdx]);
+  if (!missing.length) {
+    toast('当前阶段都填好啦 ✓');
+    return false;
+  }
+  jumpToItem(missing[0]);
+  toast(`还有 ${missing.length} 项未填，跳到第一个`);
+  return true;
+}
+
 function nextTeam() {
+  // 先检查未填，有就跳过去并停在本组
+  if (findUnfilled()) return;
   toast(`已保存「${teams[currentIdx].name}」 ${calcTotal(teams[currentIdx])}分`);
   if (currentIdx < teams.length - 1) {
     setTimeout(() => switchTeam(currentIdx + 1), 400);
