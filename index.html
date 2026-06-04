@@ -475,9 +475,6 @@ body {
       <div class="score-total"><span id="score-num">0</span><span class="max" id="score-max">/100</span></div>
     </div>
     <div class="stage-bar">
-      <button class="stage-btn active" data-stage="all" onclick="switchStage('all')">
-        全部<span class="stage-sub">含汇总</span>
-      </button>
       <button class="stage-btn" data-stage="op" onclick="switchStage('op')">
         仅操作<span class="stage-sub">A · 15</span>
       </button>
@@ -486,6 +483,9 @@ body {
       </button>
       <button class="stage-btn" data-stage="bonus" onclick="switchStage('bonus')">
         加扣分<span class="stage-sub">综合调整</span>
+      </button>
+      <button class="stage-btn active" data-stage="all" onclick="switchStage('all')">
+        全部<span class="stage-sub">含汇总</span>
       </button>
     </div>
   </div>
@@ -1098,6 +1098,11 @@ function generateReview(team) {
 
   // 加分明细
   const bonusTotal = calcBonuses(team);
+  const bonusLines = [];
+  BONUSES.forEach(b => {
+    const v = team.bonuses[b.key] || 0;
+    if (v > 0) bonusLines.push(`  · ${b.name} +${v}`);
+  });
 
   let txt = `【${team.name}】总分 ${total} / 100  ·  ${level}\n`;
 
@@ -1116,7 +1121,7 @@ function generateReview(team) {
   }
 
   if (bonusTotal > 0) {
-    txt += `\n⭐ 加分 +${bonusTotal}（综合表现额外认可）\n`;
+    txt += `\n⭐ 加分 +${bonusTotal}：\n${bonusLines.join('\n')}\n`;
   }
 
   return txt.trim();
