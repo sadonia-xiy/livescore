@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>深层倾向测试</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family: 'PingFang SC','Helvetica Neue',Arial,sans-serif; background:#fff; color:#333; }
+
+  .progress-wrap { position:fixed; top:0; left:0; right:0; z-index:200; height:5px; background:#e8e8e8; }
+  .progress-bar { height:100%; background:linear-gradient(90deg,#4fc3a1,#5f8cf5); transition:width .3s ease; width:0%; }
+
+  .site-header { background:#fff; border-bottom:1px solid #eee; padding:16px 20px; position:sticky; top:5px; z-index:100; }
+  .site-header h1 { font-size:17px; font-weight:700; color:#333; }
+
+  .intro { max-width:740px; margin:40px auto 0; padding:0 20px; }
+  .intro h2 { font-size:24px; font-weight:700; margin-bottom:10px; }
+  .intro p { font-size:14px; color:#666; line-height:1.9; }
+
+  .scale-hint {
+    display:flex; justify-content:space-between; align-items:center;
+    max-width:740px; margin:32px auto 0; padding:0 20px;
+    font-size:12px; font-weight:700;
+  }
+  .scale-hint .agree { color:#4fc3a1; }
+  .scale-hint .disagree { color:#7b5ea7; }
+
+  .questions { max-width:740px; margin:0 auto; padding:0 20px 60px; }
+  .q-item { border-bottom:1px solid #eee; padding:32px 0; }
+  .q-en { font-size:15px; font-weight:700; color:#222; margin-bottom:5px; line-height:1.65; }
+  .q-zh { font-size:13px; color:#999; margin-bottom:24px; line-height:1.65; }
+
+  .circles {
+    display:flex; align-items:center; justify-content:center;
+  }
+  .agree-label, .disagree-label {
+    font-size:11px; font-weight:700; flex-shrink:0;
+  }
+  .agree-label { color:#4fc3a1; text-align:right; padding-right:10px; min-width:52px; }
+  .disagree-label { color:#7b5ea7; text-align:left; padding-left:10px; min-width:52px; }
+
+  .circle-group {
+    display:flex; align-items:center;
+    gap:6px;
+  }
+
+  /* touch wrapper for larger tap target */
+  .circle-btn {
+    display:flex; align-items:center; justify-content:center;
+    width:44px; height:44px; cursor:pointer;
+    flex-shrink:0;
+  }
+
+  .circle {
+    border-radius:50%;
+    border:2px solid;
+    transition: transform .1s, background .15s;
+    pointer-events:none;
+  }
+  .circle-btn:active .circle { transform:scale(0.9); }
+
+  .sz0 { width:38px; height:38px; border-color:#4fc3a1; }
+  .sz1 { width:30px; height:30px; border-color:#4fc3a1; }
+  .sz2 { width:22px; height:22px; border-color:#9dcebb; }
+  .sz3 { width:16px; height:16px; border-color:#ccc; }
+  .sz4 { width:22px; height:22px; border-color:#b09dc8; }
+  .sz5 { width:30px; height:30px; border-color:#7b5ea7; }
+  .sz6 { width:38px; height:38px; border-color:#7b5ea7; }
+
+  .circle-btn.sel0 .circle, .circle-btn.sel1 .circle { background:#4fc3a1; border-color:#4fc3a1; }
+  .circle-btn.sel2 .circle { background:#9dcebb; border-color:#9dcebb; }
+  .circle-btn.sel3 .circle { background:#ccc; border-color:#ccc; }
+  .circle-btn.sel4 .circle { background:#b09dc8; border-color:#b09dc8; }
+  .circle-btn.sel5 .circle, .circle-btn.sel6 .circle { background:#7b5ea7; border-color:#7b5ea7; }
+
+  .submit-wrap { text-align:center; padding:32px 0 60px; }
+  .btn-submit {
+    background:#4fc3a1; color:#fff; border:none;
+    padding:16px 52px; border-radius:40px; font-size:16px; font-weight:600;
+    cursor:pointer; letter-spacing:2px; transition:background .2s;
+    -webkit-appearance:none;
+  }
+  .btn-submit:hover { background:#3aaa8a; }
+  .btn-submit:disabled { background:#ccc; cursor:not-allowed; }
+  .answered-count { font-size:13px; color:#aaa; margin-top:12px; }
+
+  #result { display:none; }
+  .result-hero {
+    background:linear-gradient(135deg,#16213e,#1a1a3e);
+    color:#fff; padding:64px 20px; text-align:center;
+  }
+  .result-type { font-size:56px; letter-spacing:8px; font-weight:800; color:#e94560; margin-bottom:12px; }
+  .result-name { font-size:22px; letter-spacing:4px; font-weight:300; margin-bottom:28px; }
+  .result-summary { max-width:500px; margin:0 auto; font-size:15px; line-height:2; color:#c0c0d8; }
+  .result-body { max-width:740px; margin:0 auto; padding:48px 20px; }
+  .result-section { margin-bottom:40px; }
+  .result-section h3 { font-size:17px; font-weight:700; margin-bottom:14px; color:#222; }
+  .result-section p { font-size:14px; line-height:2; color:#555; }
+  .tags { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .tag { padding:6px 14px; border-radius:20px; font-size:12px; border:1.5px solid; letter-spacing:1px; }
+  .tag-green { color:#4fc3a1; border-color:#4fc3a1; }
+  .tag-purple { color:#7b5ea7; border-color:#7b5ea7; }
+  .btn-retry {
+    display:block; margin:32px auto 0; background:transparent;
+    border:2px solid #e94560; color:#e94560; padding:14px 40px;
+    border-radius:40px; font-size:13px; letter-spacing:3px; cursor:pointer;
+    transition:all .2s; -webkit-appearance:none;
+  }
+  .btn-retry:hover { background:#e94560; color:#fff; }
+
+  @media(max-width:480px){
+    .circle-group { gap:3px; }
+    .circle-btn { width:40px; height:40px; }
+    .sz0,.sz6 { width:32px; height:32px; }
+    .sz1,.sz5 { width:26px; height:26px; }
+    .sz2,.sz4 { width:20px; height:20px; }
+    .sz3 { width:14px; height:14px; }
+    .agree-label, .disagree-label { min-width:36px; font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap"><div class="progress-bar" id="pb"></div></div>
+
+<div id="test-section">
+  <header class="site-header"><h1>深层倾向测试 · Deep Tendency Test</h1></header>
+
+  <div class="intro">
+    <h2>Find out who you really are.</h2>
+    <p>20道题，没有对错答案。<br>请根据你的真实感受作答——第一反应往往最准确。</p>
+  </div>
+
+  <div class="scale-hint">
+    <span class="agree">AGREE 同意</span>
+    <span class="disagree">DISAGREE 不同意</span>
+  </div>
+
+  <div class="questions" id="qlist"></div>
+
+  <div class="submit-wrap">
+    <button class="btn-submit" id="submitBtn" onclick="showResult()" disabled>查看结果</button>
+    <div class="answered-count" id="answeredCount">已作答 0 / 20</div>
+  </div>
+</div>
+
+<div id="result">
+  <div class="result-hero">
+    <div class="result-type" id="rType"></div>
+    <div class="result-name" id="rName"></div>
+    <div class="result-summary" id="rSummary"></div>
+  </div>
+  <div class="result-body">
+    <div class="result-section">
+      <h3>你是这样的人</h3>
+      <p id="rDetail"></p>
+      <div class="tags" id="rTags"></div>
+    </div>
+    <div class="result-section">
+      <h3>在关系里</h3>
+      <p id="rRelation"></p>
+    </div>
+    <div class="result-section">
+      <h3>你的边界</h3>
+      <p id="rBoundary"></p>
+    </div>
+    <button class="btn-retry" onclick="retry()">再测一次 · Retry</button>
+  </div>
+</div>
+
+<script>
+var questions = [
+  { en:"You feel more at ease when someone else takes the lead.", zh:"当别人掌控节奏时，你会感到更放松。" },
+  { en:"You tend to hesitate before expressing what you truly want.", zh:"你通常会在表达真实欲望之前犹豫片刻。" },
+  { en:"Being the center of someone's undivided attention feels natural to you.", zh:"成为某人全部注意力的焦点，对你来说是自然而然的事。" },
+  { en:"You find it easier to open up when someone else makes the first move.", zh:"当对方先迈出第一步时，你会更容易敞开自己。" },
+  { en:"Sometimes saying \"no\" is your way of asking to be convinced.", zh:"有时候说"不"，其实是在等对方来说服你。" },
+  { en:"Physical reassurance means more to you than words.", zh:"肢体上的确认比语言上的承诺对你更有说服力。" },
+  { en:"You prefer to be pursued rather than to do the pursuing.", zh:"比起主动追求，你更享受被人追来的感觉。" },
+  { en:"A specific tone of voice can shift your mood in seconds.", zh:"某种特定的语气和声调，能在瞬间改变你的状态。" },
+  { en:"In the right situation, letting go of control feels like freedom.", zh:"在对的情境下放弃掌控感，对你来说是一种解脱。" },
+  { en:"You enjoy testing limits when you completely trust the other person.", zh:"当你完全信任对方时，你享受试探边界的感觉。" },
+  { en:"You feel most comfortable when the rules between you are clear.", zh:"当你和某人之间的规则清晰明确时，你最感到舒适。" },
+  { en:"You hold back until the other person proves they can handle your honesty.", zh:"在对方证明能承接你的真实之前，你会一直保持克制。" },
+  { en:"You often know what you want but wait for the other person to name it first.", zh:"你经常知道自己想要什么，但等着对方先说出口。" },
+  { en:"Being guided, in the right context, feels like a gift rather than a loss.", zh:"在对的情境下被人引导，感觉更像是礼物而不是失去。" },
+  { en:"You are drawn to people who know exactly what they want.", zh:"你会被那些清楚知道自己想要什么的人所吸引。" },
+  { en:"You enjoy the tension of almost speaking before someone breaks the silence.", zh:"你享受那种几乎要开口，却等着对方打破沉默的张力。" },
+  { en:"You feel safer when the other person takes responsibility for the moment.", zh:"当对方承担起那个当下的责任时，你会感到更安全。" },
+  { en:"Your body often responds before your mind catches up.", zh:"你的身体反应常常比你的意识更快。" },
+  { en:"You find it easier to receive than to give in intimate moments.", zh:"在亲密时刻，你更擅长接受，而不是给予。" },
+  { en:"You feel most yourself when someone sees through your hesitation and stays anyway.", zh:"当有人看穿你的犹豫却依然留下，你才感觉最像自己。" }
+];
+
+var results = [
+  { min:80, type:"YIELD", name:"全然交托型",
+    summary:"你在亲密关系里最放松的状态，是把主动权完全交出去，然后好好感受被完全接住的那种安全感。",
+    detail:"你不是没主见——你只是清楚，某些时候放手本身就是最大的选择。你在内心有完整的判断，只是你更享受看对方能不能读懂你、能不能接住你。一旦信任建立，你的开放程度会让对方措手不及。",
+    relation:"你需要一个能看穿你犹豫、且不会因此退缩的人。你不缺想法，但你享受被引导的那种节奏感——不是因为你软弱，是因为你懂得，关系里最好的时刻往往在你决定「这个人值得」之后。",
+    boundary:"你的边界清晰但不外显。你允许的事你会全然配合，你不允许的事也能清楚说出来——只是通常你更愿意等对方先证明他值得知道那条线在哪里。",
+    tags:["温柔服从","等待投喂","内心戏丰富","被盯着才心安","信任先于一切"] },
+  { min:55, type:"PULL", name:"欲擒故纵型",
+    summary:"嘴上随便，心里有整套剧本在等着。你喜欢假装无所谓来测试对方，但一旦对方认真了，你比任何人都先心软。",
+    detail:"你不是在玩游戏——你是在保护自己。在你完全确认之前，你不愿意先暴露心动。但那个「被拆穿」的瞬间对你来说有某种特别的分量，因为那意味着对方真的在看你，不只是在配合你。",
+    relation:"你需要有人能读懂你沉默背后的意思，又不会因为你的迂回而失去耐心。你的迟疑不是拒绝，是邀请——只是这张邀请函没有写明地址。",
+    boundary:"你的边界有时连你自己都说不清。你会用「不」测试，但你其实知道那条线在哪里。当你真的划出一条线时，那是认真的。",
+    tags:["假装矜持","测试对方","被拆穿才满足","等对方先开口","心软快过嘴"] },
+  { min:30, type:"HOLD", name:"半推半就型",
+    summary:"你在主动与被动之间保持着精妙的平衡。有时候想主导一切，有时候又想被人好好安排——这本身就是你最吸引人的地方。",
+    detail:"你的不确定性是真实的，不是策略。你在不同的情境、不同的人面前会呈现完全不同的面貌，这让人难以彻底看透你。你享受这种流动感，但有时也会因为自己的矛盾而困惑。",
+    relation:"你需要一个足够有弹性的人——能在你想主导时让出空间，也能在你想依赖时稳稳接住你。单一模式的人会让你疲惫。",
+    boundary:"你的边界会随关系深度而移动。你不是没有边界，只是那条线在不同时候不在同一个地方。",
+    tags:["情绪两面","随心切换","享受流动","边界感模糊","角色可切换"] },
+  { min:0, type:"LEAD", name:"主动出击型",
+    summary:"等待不是你的风格，主动才是。你喜欢掌控节奏，喜欢看对方被你带着走的那种感觉。",
+    detail:"你的自信是真实的，不是表演。你清楚知道自己想要什么，而且你不会等着对方来猜——你直接告诉他。被人指令？那不如你来主导。你的掌控欲不是控制，是因为你相信你的判断。",
+    relation:"你需要一个能接住你的强度、且不会因此退缩的人。你不需要被照顾，但你需要被匹配——你最享受遇到真的能跟上你节奏的那种人。",
+    boundary:"你的边界很清晰，而且你会直接说出来。你不测试，你表达。你欣赏同样直接的人。",
+    tags:["掌控全场","主动出击","节奏由我定","直接表达","不喜欢猜谜"] }
+];
+
+var TOTAL = questions.length;
+var answers = new Array(TOTAL).fill(null);
+
+function render(){
+  var list = document.getElementById('qlist');
+  list.innerHTML = '';
+  questions.forEach(function(q, i){
+    var div = document.createElement('div');
+    div.className = 'q-item';
+    var html = '<div class="q-en">'+q.en+'</div><div class="q-zh">'+q.zh+'</div>';
+    html += '<div class="circles"><span class="agree-label">AGREE<br>同意</span><div class="circle-group" id="cg'+i+'">';
+    for(var j=0;j<7;j++){
+      html += '<div class="circle-btn" id="cb'+i+'_'+j+'" data-qi="'+i+'" data-ci="'+j+'"><div class="circle sz'+j+'"></div></div>';
+    }
+    html += '</div><span class="disagree-label">DISAGREE<br>不同意</span></div>';
+    div.innerHTML = html;
+    list.appendChild(div);
+  });
+
+  document.querySelectorAll('.circle-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var qi = parseInt(this.getAttribute('data-qi'));
+      var ci = parseInt(this.getAttribute('data-ci'));
+      pick(qi, ci);
+    });
+  });
+}
+
+function pick(qi, ci){
+  for(var j=0;j<7;j++){
+    var btn = document.getElementById('cb'+qi+'_'+j);
+    btn.className = 'circle-btn';
+  }
+  document.getElementById('cb'+qi+'_'+ci).className = 'circle-btn sel'+ci;
+  answers[qi] = ci;
+  updateState();
+}
+
+function updateState(){
+  var n = answers.filter(function(a){ return a!==null; }).length;
+  document.getElementById('answeredCount').textContent = '已作答 '+n+' / '+TOTAL;
+  document.getElementById('pb').style.width = (n/TOTAL*100)+'%';
+  document.getElementById('submitBtn').disabled = (n < TOTAL);
+}
+
+function showResult(){
+  var score = answers.reduce(function(s,v){
+    if(v===null) return s;
+    return s + [3,2,1,0,-1,-2,-3][v];
+  }, 0);
+
+  var r = results[results.length-1];
+  for(var i=0;i<results.length;i++){
+    if(score >= results[i].min){ r=results[i]; break; }
+  }
+
+  document.getElementById('rType').textContent = r.type;
+  document.getElementById('rName').textContent = r.name;
+  document.getElementById('rSummary').textContent = r.summary;
+  document.getElementById('rDetail').textContent = r.detail;
+  document.getElementById('rRelation').textContent = r.relation;
+  document.getElementById('rBoundary').textContent = r.boundary;
+
+  var tagsEl = document.getElementById('rTags');
+  tagsEl.innerHTML = r.tags.map(function(t,i){
+    return '<span class="tag '+(i%2===0?'tag-green':'tag-purple')+'">'+t+'</span>';
+  }).join('');
+
+  document.getElementById('test-section').style.display='none';
+  document.getElementById('result').style.display='block';
+  document.getElementById('pb').style.width='100%';
+  window.scrollTo(0,0);
+}
+
+function retry(){
+  answers = new Array(TOTAL).fill(null);
+  document.getElementById('result').style.display='none';
+  document.getElementById('test-section').style.display='block';
+  document.getElementById('pb').style.width='0%';
+  document.getElementById('answeredCount').textContent='已作答 0 / '+TOTAL;
+  document.getElementById('submitBtn').disabled=true;
+  render();
+  window.scrollTo(0,0);
+}
+
+render();
+</script>
+</body>
+</html>
